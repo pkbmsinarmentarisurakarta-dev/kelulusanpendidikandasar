@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Informasi Kelulusan Paket A & B</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Canvas Confetti for Celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- SheetJS CDN for Excel Import/Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Vue.js 3 CDN (Options API) -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            200: '#bae2fd',
+                            300: '#7dd2fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                            950: '#031b2b',
+                        },
+                        accent: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            200: '#fde68a',
+                            300: '#fcd34d',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                            800: '#92400e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #f8fafc;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        
+        /* Custom print styling for Graduation Certificate (SKL) */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-skl-area, #printable-skl-area * {
+                visibility: visible;
+            }
+            #printable-skl-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* Glassmorphism background classes */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+    </style>
+</head>
+<body class="font-sans min-h-screen flex flex-col antialiased text-slate-800">
+
+    <div id="app" v-cloak class="flex-grow flex flex-col">
+        
+        <!-- Top Navigation -->
+        <header class="bg-brand-950 text-white shadow-lg sticky top-0 z-40 border-b border-brand-800 no-print">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row items-center justify-between py-4 md:h-20 gap-4">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-amber-500 text-brand-950 p-2.5 rounded-xl flex items-center justify-center shadow-md shrink-0">
+                            <i class="fa-solid fa-graduation-cap text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                                {{ schoolSettings.pkbmName }}
+                            </h1>
+                            <p class="text-xs text-brand-300 font-medium">Sistem Pengumuman Kelulusan Paket A & B</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Connection & Navigation Controls -->
+                    <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+                        
+                        <!-- Header Status Badge -->
+                        <div 
+                            :class="isOnlineMode ? (isPublished ? 'bg-emerald-950/80 border-emerald-500/30 text-emerald-300' : 'bg-blue-950/80 border-blue-500/30 text-blue-300') : 'bg-amber-950/80 border-amber-500/30 text-amber-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-2 select-none shadow-inner">
+                            <span class="relative flex h-2 w-2">
+                                <span :class="isOnlineMode ? (isPublished ? 'bg-emerald-400' : 'bg-blue-400') : 'bg-amber-400'" class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
+                                <span :class="isOnlineMode ? (isPublished ? 'bg-emerald-500' : 'bg-blue-500') : 'bg-amber-500'" class="relative inline-flex rounded-full h-2 w-2"></span>
+                            </span>
+                            <span>{{ isOnlineMode ? (isPublished ? 'PORTAL AKTIF' : 'TERJADWAL') : 'PORTAL DITUTUP' }}</span>
+                        </div>
+
+                        <!-- Navigation Tabs -->
+                        <nav class="flex space-x-1 bg-brand-900/60 p-1 rounded-xl border border-brand-800">
+                            <button 
+                                @click="switchView('search')"
+                                :class="currentView === 'search' ? 'bg-amber-500 text-brand-950 shadow-sm' : 'text-slate-200 hover:text-white hover:bg-brand-800/50'"
+                                class="px-3 py-2 sm:px-4 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-300 flex items-center gap-2">
+                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                <span>Cek Kelulusan</span>
+                            </button>
+                            <button 
+                                @click="switchView('admin')"
+                                :class="currentView === 'admin' ? 'bg-amber-500 text-brand-950 shadow-sm' : 'text-slate-200 hover:text-white hover:bg-brand-800/50'"
+                                class="px-3 py-2 sm:px-4 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-300 flex items-center gap-2">
+                                <i class="fa-solid fa-user-gear text-xs"></i>
+                                <span>Panel Admin</span>
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Connection Status Notification Banner -->
+        <div v-if="!isOnlineMode" class="bg-amber-500 text-amber-950 text-center py-2 px-4 text-xs font-bold shadow-md flex items-center justify-center gap-2 no-print">
+            <i class="fa-solid fa-lock animate-pulse"></i>
+            <span>Akses Cek Kelulusan Mandiri sedang ditutup sementara oleh Administrator PKBM Sinar Mentari.</span>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 no-print">
+            
+            <!-- STUDENT SEARCH PORTAL VIEW -->
+            <div v-if="currentView === 'search'" class="space-y-8">
+                
+                <!-- IF PORTAL IS OFFLINE / DEACTIVATED BY ADMIN -->
+                <div v-if="!isOnlineMode" class="max-w-2xl mx-auto py-12 px-4 text-center animate-fade-in">
+                    <div class="bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 shadow-xl relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-b from-slate-50 to-white pointer-events-none"></div>
+                        <div class="relative z-10">
+                            <div class="bg-amber-50 text-amber-500 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md border border-amber-100">
+                                <i class="fa-solid fa-triangle-exclamation text-4xl"></i>
+                            </div>
+                            <h3 class="text-2xl sm:text-3xl font-black text-slate-800 mb-4">Portal Kelulusan Ditutup</h3>
+                            <p class="text-slate-600 text-sm sm:text-base mb-6 leading-relaxed">
+                                Mohon maaf, saat ini sistem pengecekan kelulusan mandiri untuk <strong class="text-brand-900 font-bold">{{ schoolSettings.pkbmName }}</strong> sedang ditangguhkan atau dinonaktifkan sementara oleh Administrator.
+                            </p>
+                            <div class="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-500 text-left space-y-3 shadow-inner">
+                                <p class="font-bold text-slate-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-info text-amber-500"></i> Informasi Tambahan & Petunjuk:
+                                </p>
+                                <ul class="list-disc pl-5 space-y-1.5 text-slate-600">
+                                    <li>Pengumuman kelulusan resmi Paket A & Paket B akan dibuka sesuai dengan jadwal yang telah ditentukan pihak Satuan Pendidikan.</li>
+                                    <li>Data kelulusan Anda aman tersimpan dalam basis data sistem kami.</li>
+                                    <li>Untuk pertanyaan lebih lanjut atau kendala mendesak, silakan hubungi bagian Sekretariat PKBM secara langsung.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IF PORTAL IS ONLINE / ACTIVE -->
+                <div v-else class="space-y-8">
+                    
+                    <!-- NEW/RESTORED: IF NOT YET PUBLISHED (COUNTDOWN TIMER PORTAL) -->
+                    <div v-if="!isPublished" class="max-w-3xl mx-auto py-8 px-4 text-center animate-fade-in">
+                        <div class="bg-gradient-to-br from-brand-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-8 sm:p-12 shadow-2xl border border-brand-800 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(56,189,248,0.1),transparent)] pointer-events-none"></div>
+                            
+                            <div class="relative z-10 space-y-6">
+                                <span class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                                    <i class="fa-regular fa-clock animate-spin"></i> Segera Hadir / Terjadwal
+                                </span>
+                                
+                                <h3 class="text-2xl sm:text-4xl font-extrabold tracking-tight">Pengumuman Kelulusan Belum Dibuka</h3>
+                                <p class="text-slate-300 text-sm sm:text-base max-w-xl mx-auto">
+                                    Halaman pencarian kelulusan mandiri {{ schoolSettings.pkbmName }} akan terbuka secara otomatis dalam hitungan mundur berikut:
+                                </p>
+
+                                <!-- Countdown Timer Cards Widget -->
+                                <div class="grid grid-cols-4 gap-2 sm:gap-4 max-w-lg mx-auto py-4 select-none">
+                                    <div class="bg-white/10 rounded-2xl p-2.5 sm:p-4 border border-white/10 backdrop-blur-sm shadow-lg text-center">
+                                        <span class="block text-2xl sm:text-4xl font-black text-amber-400 font-mono">{{ countdown.days }}</span>
+                                        <span class="block text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest mt-1">Hari</span>
+                                    </div>
+                                    <div class="bg-white/10 rounded-2xl p-2.5 sm:p-4 border border-white/10 backdrop-blur-sm shadow-lg text-center">
+                                        <span class="block text-2xl sm:text-4xl font-black text-amber-400 font-mono">{{ String(countdown.hours).padStart(2, '0') }}</span>
+                                        <span class="block text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest mt-1">Jam</span>
+                                    </div>
+                                    <div class="bg-white/10 rounded-2xl p-2.5 sm:p-4 border border-white/10 backdrop-blur-sm shadow-lg text-center">
+                                        <span class="block text-2xl sm:text-4xl font-black text-amber-400 font-mono">{{ String(countdown.minutes).padStart(2, '0') }}</span>
+                                        <span class="block text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest mt-1">Menit</span>
+                                    </div>
+                                    <div class="bg-white/10 rounded-2xl p-2.5 sm:p-4 border border-white/10 backdrop-blur-sm shadow-lg text-center">
+                                        <span class="block text-2xl sm:text-4xl font-black text-amber-400 font-mono">{{ String(countdown.seconds).padStart(2, '0') }}</span>
+                                        <span class="block text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest mt-1">Detik</span>
+                                    </div>
+                                </div>
+
+                                <div class="pt-4 border-t border-white/15 text-xs text-slate-400 space-y-1">
+                                    <p>Jadwal rilis resmi:</p>
+                                    <p class="font-bold text-slate-200 text-sm font-sans tracking-wide">
+                                        <i class="fa-regular fa-calendar-check text-amber-400 mr-1.5"></i>
+                                        {{ formatDate(schoolSettings.announcementDate) }} pukul {{ schoolSettings.announcementTime }} WIB
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IF PORTAL IS ONLINE & TIME EXCEEDED (ACTIVE LOOKUP) -->
+                    <div v-else class="space-y-8 animate-fade-in">
+                        <!-- Hero Banner Section -->
+                        <div class="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-950 to-indigo-950 text-white rounded-3xl p-6 sm:p-12 shadow-2xl border border-brand-800">
+                            <div class="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(245,158,11,0.15),transparent)] pointer-events-none"></div>
+                            <div class="relative z-10 max-w-3xl">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 mb-4">
+                                    <i class="fa-solid fa-circle text-[6px] animate-pulse"></i> Tahun Ajaran {{ schoolSettings.tahunAjaran }}
+                                </span>
+                                <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-4">
+                                    Pengumuman Kelulusan <br class="hidden sm:inline">
+                                    <span class="text-amber-400">Program Kesetaraan Paket A & B</span>
+                                </h2>
+                                <p class="text-slate-300 text-base sm:text-lg mb-8 leading-relaxed">
+                                    Selamat datang di Portal Kelulusan Resmi {{ schoolSettings.pkbmName }}. Silakan masukkan Nomor Induk Siswa Nasional (NISN) Anda untuk mengecek status kelulusan Anda secara mandiri.
+                                </p>
+                                
+                                <!-- Search Form Bar -->
+                                <div class="bg-white/10 p-2 rounded-2xl border border-white/10 shadow-lg backdrop-blur-md max-w-xl">
+                                    <form @submit.prevent="handleSearch" class="flex flex-col sm:flex-row gap-2">
+                                        <div class="relative flex-grow">
+                                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                                <i class="fa-solid fa-address-card text-slate-400 text-lg"></i>
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                v-model.trim="searchNISN" 
+                                                placeholder="Masukkan 10 Digit NISN..." 
+                                                required
+                                                class="w-full pl-11 pr-4 py-3.5 bg-slate-900/40 border border-slate-700 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent font-medium text-lg tracking-wider"
+                                            />
+                                        </div>
+                                        <button 
+                                            type="submit" 
+                                            class="bg-amber-500 hover:bg-amber-600 text-brand-950 font-bold px-6 py-3.5 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 text-lg shrink-0">
+                                            <i class="fa-solid fa-magnifying-glass"></i>
+                                            Cek Status
+                                        </button>
+                                    </form>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-3 pl-2 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-info-circle text-amber-400"></i>
+                                    Contoh NISN Uji Coba: <span class="font-mono text-amber-300 underline cursor-pointer" @click="searchNISN = '0117364330'">0117364330</span> (Paket A) atau <span class="font-mono text-amber-300 underline cursor-pointer" @click="searchNISN = '9998350751'">9998350751</span> (Paket B).
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Search Results Section -->
+                        <div v-if="searchExecuted" class="scroll-mt-24" id="search-result">
+                            
+                            <!-- Result Not Found -->
+                            <div v-if="!searchResult" class="glass-card rounded-3xl p-8 text-center max-w-lg mx-auto shadow-xl border border-red-100 animate-fade-in">
+                                <div class="bg-red-50 text-red-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+                                    <i class="fa-solid fa-user-slash text-2xl"></i>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-800 mb-2">Data Tidak Ditemukan</h3>
+                                <p class="text-slate-600 mb-6">
+                                    Maaf, data siswa dengan NISN <span class="font-semibold text-slate-900">"{{ searchNISN }}"</span> tidak ditemukan di pangkalan data kami. Pastikan nomor yang dimasukkan sudah benar.
+                                </p>
+                                <div class="p-4 bg-slate-50 border border-slate-100 rounded-xl text-xs text-slate-500 text-left space-y-2">
+                                    <p class="font-semibold text-slate-700">Tips:</p>
+                                    <ul class="list-disc pl-4 space-y-1">
+                                        <li>Periksa kembali angka NISN Anda (biasanya berjumlah 10 digit).</li>
+                                        <li>Pastikan koneksi internet Anda stabil.</li>
+                                        <li>Jika tetap tidak ditemukan, segera hubungi sekretariat admin {{ schoolSettings.pkbmName }}.</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Result Found -->
+                            <div v-else class="space-y-6">
+                                
+                                <!-- Congratulatory / Status Announcement Banner -->
+                                <div 
+                                    :class="searchResult.status === 'LULUS' ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'" 
+                                    class="border-2 rounded-3xl p-6 sm:p-10 shadow-xl transition-all duration-300">
+                                    
+                                    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                                        <div class="flex items-center gap-5">
+                                            <div 
+                                                :class="searchResult.status === 'LULUS' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'" 
+                                                class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-3xl shadow-lg shrink-0">
+                                                <i :class="searchResult.status === 'LULUS' ? 'fa-solid fa-award' : 'fa-solid fa-triangle-exclamation'"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Hasil Evaluasi Kelulusan</p>
+                                                <h3 class="text-xl sm:text-2xl font-bold text-slate-900 mt-1">Yth. {{ searchResult.nama }}</h3>
+                                                <p class="text-sm text-slate-600 mt-1">Nomor Peserta/SK: <span class="font-mono font-medium">{{ getStudentSklNumber(searchResult) }}</span> | Program: <span class="font-semibold text-brand-700">Kesetaraan {{ searchResult.paket }}</span></p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="text-center md:text-right shrink-0">
+                                            <span class="block text-xs font-medium text-slate-400 uppercase tracking-widest mb-1">Status</span>
+                                            <span 
+                                                :class="searchResult.status === 'LULUS' ? 'bg-emerald-500 text-white px-8 py-3' : 'bg-rose-500 text-white px-8 py-3'" 
+                                                class="inline-block text-xl sm:text-2xl font-black rounded-2xl shadow-md tracking-wider">
+                                                {{ searchResult.status }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <hr :class="searchResult.status === 'LULUS' ? 'border-emerald-150' : 'border-rose-150'" class="my-6">
+                                    
+                                    <!-- Letter Preview & Certificate Print Trigger Card -->
+                                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                        <div class="text-sm text-slate-600 max-w-xl text-center sm:text-left">
+                                            <p v-if="searchResult.status === 'LULUS'">
+                                                <strong class="text-emerald-700">Selamat!</strong> Anda dinyatakan lulus dari program pendidikan kesetaraan. Anda kini dapat mencetak Surat Keterangan Kelulusan (SKL) resmi untuk dipergunakan sebagaimana mestinya.
+                                            </p>
+                                            <p v-else>
+                                                Mohon maaf, Anda dinyatakan <strong class="text-rose-700">belum lulus</strong>. Silakan menghubungi panitia kelulusan atau bagian tata usaha di PKBM kami untuk konsultasi bimbingan kelanjutan program kesetaraan Anda.
+                                            </p>
+                                        </div>
+                                        <div class="flex gap-2 shrink-0">
+                                            <button 
+                                                @click="printCertificate"
+                                                class="bg-brand-700 hover:bg-brand-800 text-white font-bold px-6 py-3.5 rounded-xl shadow-md transition-all duration-200 flex items-center gap-2">
+                                                <i class="fa-solid fa-print"></i>
+                                                Cetak / Unduh SKL
+                                            </button>
+                                            <button 
+                                                @click="scrollToSkl"
+                                                class="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold px-6 py-3.5 rounded-xl transition-all duration-200 flex items-center gap-2">
+                                                <i class="fa-solid fa-eye"></i>
+                                                Lihat Pratinjau
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Detailed Student Profile & Grades Report Box -->
+                                <div id="skl-preview-section" class="glass-card rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200 space-y-6">
+                                    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                                        <div class="flex items-center gap-2 text-brand-800">
+                                            <i class="fa-solid fa-file-invoice text-xl"></i>
+                                            <h4 class="font-bold text-lg">Detail Akademik Siswa</h4>
+                                        </div>
+                                        <span class="bg-brand-100 text-brand-800 text-xs font-semibold px-2.5 py-1 rounded-full uppercase">
+                                            {{ searchResult.paket }}
+                                        </span>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <!-- Student Personal Profile Info -->
+                                        <div class="space-y-3">
+                                            <div class="grid grid-cols-3 py-1.5 border-b border-slate-100/60 text-sm">
+                                                <span class="text-slate-500">Nama Lengkap</span>
+                                                <span class="col-span-2 font-semibold text-slate-800">{{ searchResult.nama }}</span>
+                                            </div>
+                                            <div v-if="searchResult.nipd" class="grid grid-cols-3 py-1.5 border-b border-slate-100/60 text-sm">
+                                                <span class="text-slate-500">NIPD</span>
+                                                <span class="col-span-2 font-semibold text-slate-800">{{ searchResult.nipd }}</span>
+                                            </div>
+                                            <div class="grid grid-cols-3 py-1.5 border-b border-slate-100/60 text-sm">
+                                                <span class="text-slate-500">NISN</span>
+                                                <span class="col-span-2 font-mono font-semibold text-slate-800">{{ searchResult.nisn }}</span>
+                                            </div>
+                                            <div class="grid grid-cols-3 py-1.5 border-b border-slate-100/60 text-sm">
+                                                <span class="text-slate-500">Nomor SK / SKL</span>
+                                                <span class="col-span-2 font-mono font-semibold text-slate-800">{{ getStudentSklNumber(searchResult) }}</span>
+                                            </div>
+                                            <div class="grid grid-cols-3 py-1.5 border-b border-slate-100/60 text-sm">
+                                                <span class="text-slate-500">TTL</span>
+                                                <span class="col-span-2 font-semibold text-slate-800">{{ searchResult.tempatLahir }}, {{ formatDate(searchResult.tglLahir) }}</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Grades Card Breakdown -->
+                                        <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                                            <h5 class="font-bold text-sm text-slate-700 mb-4 flex items-center gap-2">
+                                                <i class="fa-solid fa-list-check text-amber-500"></i>
+                                                Rincian Nilai Evaluasi Kelulusan
+                                            </h5>
+                                            
+                                            <div class="grid grid-cols-2 gap-2 mb-4">
+                                                <div v-for="(val, sub) in searchResult.nilai" :key="sub" class="flex justify-between items-center text-xs py-1 border-b border-slate-200/50">
+                                                    <span class="text-slate-600 capitalize truncate max-w-[120px]">{{ cleanSubjectName(sub) }}</span>
+                                                    <span class="font-mono font-bold text-slate-800 ml-1">{{ val }}</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm mt-3">
+                                                <span class="text-sm font-bold text-slate-700">Rata-Rata Nilai</span>
+                                                <span class="font-mono text-lg font-black text-brand-700">{{ getAverage(searchResult.nilai) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ADMINISTRATOR DASHBOARD VIEW -->
+            <div v-else-if="currentView === 'admin'" class="space-y-6">
+                
+                <!-- Admin Authentication Gate -->
+                <div v-if="!isAdminAuthenticated" class="max-w-md mx-auto py-12">
+                    <div class="glass-card rounded-3xl p-8 shadow-xl border border-slate-200">
+                        <div class="text-center mb-6">
+                            <div class="bg-brand-50 text-brand-700 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-brand-100 shadow-md">
+                                <i class="fa-solid fa-lock text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-black text-slate-800">Login Administrator</h3>
+                            <p class="text-slate-500 text-sm mt-1">Sistem Pengumuman Kelulusan</p>
+                        </div>
+
+                        <form @submit.prevent="authenticateAdmin" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Kata Sandi Akses</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                                        <i class="fa-solid fa-key"></i>
+                                    </span>
+                                    <input 
+                                        type="password" 
+                                        v-model="adminPassword" 
+                                        required
+                                        placeholder="Masukkan password admin..." 
+                                        class="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent font-medium"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <button 
+                                type="submit" 
+                                class="w-full bg-brand-700 hover:bg-brand-800 text-white font-bold py-3.5 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-right-to-bracket"></i>
+                                Masuk Panel
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Admin Management View (Authorized Only) -->
+                <div v-else class="space-y-8 animate-fade-in">
+                    
+                    <!-- Top Panel Action Header & Log out -->
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div>
+                            <h3 class="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+                                Selamat Datang, Administrator
+                                <span v-if="isOnlineMode" :class="isPublished ? 'text-emerald-500 bg-emerald-50 border-emerald-100' : 'text-blue-500 bg-blue-50 border-blue-100'" class="text-xs px-2.5 py-1 rounded-full border flex items-center gap-1">
+                                    <span :class="isPublished ? 'bg-emerald-500' : 'bg-blue-500'" class="h-1.5 w-1.5 rounded-full"></span> 
+                                    {{ isPublished ? 'Portal Aktif' : 'Terjadwal (Belum Buka)' }}
+                                </span>
+                                <span v-else class="text-amber-500 text-xs px-2.5 py-1 rounded-full bg-amber-50 border border-amber-100 flex items-center gap-1">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span> Portal Ditutup
+                                </span>
+                            </h3>
+                            <p class="text-sm text-slate-500">Kelola pangkalan data kelulusan, konfigurasi instansi, dan pantau kelulusan.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                            <!-- Simulated Sync Button (visible in Online mode) -->
+                            <button 
+                                v-if="isOnlineMode"
+                                @click="simulateCloudSync"
+                                :disabled="isSyncing"
+                                class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors duration-200 flex items-center justify-center gap-2">
+                                <i :class="isSyncing ? 'fa-solid fa-spinner animate-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
+                                {{ isSyncing ? 'Menyinkronkan...' : 'Sinkronisasi Cloud' }}
+                            </button>
+                            
+                            <button 
+                                @click="resetToDefaultData"
+                                class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors duration-200 flex items-center justify-center gap-2"
+                                title="Kembalikan database awal simulasi">
+                                <i class="fa-solid fa-arrow-rotate-left"></i>
+                                Reset Data Simulasi
+                            </button>
+                            <button 
+                                @click="logoutAdmin"
+                                class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-4 py-2.5 rounded-xl text-sm border border-rose-200 transition-colors duration-200 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-sign-out-alt"></i>
+                                Keluar Panel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Dash Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                        <div class="bg-gradient-to-br from-indigo-900 to-indigo-950 text-white p-6 rounded-2xl shadow-lg border border-indigo-800 relative overflow-hidden">
+                            <div class="absolute right-3 bottom-1 text-white/5 text-7xl"><i class="fa-solid fa-users"></i></div>
+                            <span class="block text-indigo-300 text-xs font-bold uppercase tracking-wider">Total Seluruh Siswa</span>
+                            <span class="block text-4xl font-extrabold mt-2">{{ totalStudentsCount }}</span>
+                            <span class="block text-xs text-indigo-200 mt-2">{{ countStudentsByStatus('LULUS') }} Siswa dinyatakan Lulus</span>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
+                            <div class="absolute right-3 bottom-1 text-slate-100 text-7xl"><i class="fa-solid fa-school"></i></div>
+                            <span class="block text-slate-400 text-xs font-bold uppercase tracking-wider">Siswa Paket A (SD)</span>
+                            <span class="block text-4xl font-extrabold text-slate-800 mt-2">{{ countStudentsByPaket('Paket A') }}</span>
+                            <span class="block text-xs text-emerald-600 font-medium mt-2"><i class="fa-solid fa-circle-check"></i> {{ countStudentsByPaketAndStatus('Paket A', 'LULUS') }} Lulus ({{ getPercentage('Paket A') }}%)</span>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
+                            <div class="absolute right-3 bottom-1 text-slate-100 text-7xl"><i class="fa-solid fa-school-flag"></i></div>
+                            <span class="block text-slate-400 text-xs font-bold uppercase tracking-wider">Siswa Paket B (SMP)</span>
+                            <span class="block text-4xl font-extrabold text-slate-800 mt-2">{{ countStudentsByPaket('Paket B') }}</span>
+                            <span class="block text-xs text-emerald-600 font-medium mt-2"><i class="fa-solid fa-circle-check"></i> {{ countStudentsByPaketAndStatus('Paket B', 'LULUS') }} Lulus ({{ getPercentage('Paket B') }}%)</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
+                            <div class="absolute right-3 bottom-1 text-emerald-100 text-7xl"><i class="fa-solid fa-circle-check"></i></div>
+                            <span class="block text-emerald-600 text-xs font-bold uppercase tracking-wider">Kelulusan Keseluruhan</span>
+                            <span class="block text-4xl font-extrabold text-emerald-800 mt-2">{{ totalPassedPercentage }}%</span>
+                            <span class="block text-xs text-emerald-700 mt-2">Tingkat kelulusan akumulatif</span>
+                        </div>
+                    </div>
+
+                    <!-- School Instansi Settings & Student Database Tabs layout -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- Left Column: Mode Toggle & Instansi Configuration -->
+                        <div class="space-y-6">
+                            
+                            <!-- Online/Offline Interactive Control Card inside Admin Panel -->
+                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                                <div class="border-b border-slate-100 pb-3 flex items-center gap-2 text-slate-800">
+                                    <i class="fa-solid fa-power-off text-brand-700"></i>
+                                    <h4 class="font-extrabold text-lg">Status Akses Portal Siswa</h4>
+                                </div>
+                                
+                                <p class="text-xs text-slate-500 leading-relaxed">
+                                    Gunakan sakelar di bawah ini untuk mengontrol publikasi kelulusan. Saat dimatikan, pencarian NISN siswa akan terkunci total.
+                                </p>
+                                
+                                <!-- Toggle Switch Widget -->
+                                <div class="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl transition-all duration-300">
+                                    <div class="flex flex-col">
+                                        <span class="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                            {{ isOnlineMode ? 'Portal Dibuka (Aktif)' : 'Portal Ditutup (Offline)' }}
+                                        </span>
+                                        <span class="text-[10px] text-slate-400 mt-0.5">
+                                            {{ isOnlineMode ? 'Siswa dapat mencari kelulusan' : 'Siswa diblokir halaman penutupan' }}
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- IOS-Style Toggle Slider -->
+                                    <button 
+                                        @click="toggleConnectionMode" 
+                                        type="button"
+                                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                        :class="isOnlineMode ? 'bg-emerald-500' : 'bg-slate-300'">
+                                        <span 
+                                            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" 
+                                            :class="isOnlineMode ? 'translate-x-5' : 'translate-x-0'">
+                                        </span>
+                                    </button>
+                                </div>
+
+                                <!-- Status Info Message -->
+                                <div v-if="isOnlineMode" class="space-y-2">
+                                    <div v-if="isPublished" class="bg-emerald-50 border border-emerald-100 p-3 rounded-xl text-xs text-emerald-800 flex items-start gap-2 animate-fade-in">
+                                        <i class="fa-solid fa-check-circle mt-0.5 text-emerald-600"></i>
+                                        <span>Portal Aktif. Jadwal rilis telah terlewati. Siswa sudah bisa mengakses data kelulusan.</span>
+                                    </div>
+                                    <div v-else class="bg-blue-50 border border-blue-100 p-3 rounded-xl text-xs text-blue-800 flex items-start gap-2 animate-fade-in">
+                                        <i class="fa-solid fa-clock mt-0.5 text-blue-600"></i>
+                                        <span>Portal Terjadwal. Akses siswa saat ini terkunci hitung mundur dan akan terbuka otomatis pada waktu yang ditentukan.</span>
+                                    </div>
+                                </div>
+                                <div class="bg-amber-50 border border-amber-100 p-3 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+                                    <i class="fa-solid fa-ban mt-0.5 text-amber-600"></i>
+                                    <span>Portal ditutup secara manual. Siswa tidak dapat mencari kelulusan tanpa menghiraukan jadwal rilis.</span>
+                                </div>
+                            </div>
+
+                            <!-- Instansi Configuration Form -->
+                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+                                <div class="border-b border-slate-100 pb-3 flex items-center gap-2 text-slate-800">
+                                    <i class="fa-solid fa-sliders text-brand-700"></i>
+                                    <h4 class="font-extrabold text-lg">Konfigurasi PKBM & SKL</h4>
+                                </div>
+                                
+                                <form @submit.prevent="saveSchoolSettings" class="space-y-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama PKBM / Instansi</label>
+                                        <input type="text" v-model="schoolSettings.pkbmName" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tahun Ajaran</label>
+                                        <input type="text" v-model="schoolSettings.tahunAjaran" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Kepala Sekolah / PKBM</label>
+                                        <input type="text" v-model="schoolSettings.headmasterName" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NIP Kepala (Opsional)</label>
+                                        <input type="text" v-model="schoolSettings.headmasterNip" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Format Template Nomor SKL</label>
+                                        <input type="text" v-model="schoolSettings.nomorSklFormat" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                                        <p class="text-[10px] text-slate-400 mt-1">Format dinamis. Gunakan placeholder: <code class="font-bold text-slate-600">[NISN]</code>, <code class="font-bold text-slate-600">[NIPD]</code>, atau <code class="font-bold text-slate-600">[PAKET]</code>.</p>
+                                    </div>
+                                    
+                                    <!-- RESTORED: Date & Time of Release -->
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tanggal Rilis</label>
+                                            <input type="date" v-model="schoolSettings.announcementDate" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Jam Rilis (WIB)</label>
+                                            <input type="time" v-model="schoolSettings.announcementTime" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lokasi Penerbitan SKL</label>
+                                        <input type="text" v-model="schoolSettings.tempatTerbit" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                                    </div>
+                                    <button 
+                                        type="submit" 
+                                        class="w-full bg-brand-700 hover:bg-brand-800 text-white font-bold py-2.5 rounded-lg text-sm transition shadow-sm flex items-center justify-center gap-2">
+                                        <i class="fa-solid fa-floppy-disk"></i>
+                                        Simpan Perubahan
+                                    </button>
+                                </form>
+                            </div>
+
+                        </div>
+
+                        <!-- Student Data List & Filter Section (Right Column) -->
+                        <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[820px]">
+                            
+                            <!-- Search and Filters Table Controls -->
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                                <div>
+                                    <h4 class="font-extrabold text-lg text-slate-800">Database Siswa</h4>
+                                    <p class="text-xs text-slate-500">Jumlah siswa terdaftar: {{ totalStudentsCount }} orang</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                                    <!-- Excel Download & Import Buttons -->
+                                    <button 
+                                        @click="downloadExcelTemplate"
+                                        class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-semibold px-3 py-2 rounded-xl text-xs transition duration-200 flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
+                                        title="Unduh format spreadsheet siap pakai">
+                                        <i class="fa-solid fa-file-excel text-emerald-600 text-sm"></i>
+                                        Unduh Template
+                                    </button>
+                                    <button 
+                                        @click="triggerExcelUpload"
+                                        class="bg-sky-600 hover:bg-sky-700 text-white font-semibold px-3 py-2 rounded-xl text-xs transition duration-200 flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
+                                        title="Impor data siswa dari file Excel">
+                                        <i class="fa-solid fa-file-import text-sm"></i>
+                                        Upload Excel
+                                    </button>
+                                    <input 
+                                        type="file" 
+                                        ref="excelFileInput" 
+                                        @change="handleExcelUpload" 
+                                        class="hidden" 
+                                        accept=".xlsx, .xls, .csv"
+                                    />
+                                    <button 
+                                        @click="openAddStudentModal"
+                                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded-xl text-xs transition duration-200 flex items-center justify-center gap-1.5 w-full sm:w-auto">
+                                        <i class="fa-solid fa-user-plus text-xs"></i>
+                                        Tambah Siswa
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Search Filter bar -->
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                                        <i class="fa-solid fa-search text-xs"></i>
+                                    </span>
+                                    <input 
+                                        type="text" 
+                                        v-model="dbSearchQuery"
+                                        placeholder="Cari nama atau NISN..." 
+                                        class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-brand-600 focus:outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <select 
+                                        v-model="dbFilterPaket"
+                                        class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-brand-600 focus:outline-none bg-white">
+                                        <option value="ALL">Semua Program (A & B)</option>
+                                        <option value="Paket A">Hanya Paket A (SD)</option>
+                                        <option value="Paket B">Hanya Paket B (SMP)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <select 
+                                        v-model="dbFilterStatus"
+                                        class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-brand-600 focus:outline-none bg-white">
+                                        <option value="ALL">Semua Status Kelulusan</option>
+                                        <option value="LULUS">Lulus</option>
+                                        <option value="BELUM LULUS">Belum Lulus</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Student Scrollable Table Area -->
+                            <div class="flex-grow overflow-y-auto border border-slate-200 rounded-xl">
+                                <table class="min-w-full divide-y divide-slate-200 text-left">
+                                    <thead class="bg-slate-55 sticky top-0 bg-slate-50 z-10 border-b border-slate-200 shadow-sm">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Nama / NISN</th>
+                                            <th scope="col" class="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Program</th>
+                                            <th scope="col" class="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Status</th>
+                                            <th scope="col" class="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Rata-rata</th>
+                                            <th scope="col" class="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 bg-white">
+                                        <tr v-if="filteredStudents.length === 0">
+                                            <td colspan="5" class="px-4 py-8 text-center text-sm text-slate-400">
+                                                <i class="fa-regular fa-folder-open text-3xl mb-2 block text-slate-300"></i>
+                                                Data siswa tidak ditemukan / kosong.
+                                            </td>
+                                        </tr>
+                                        <tr v-for="student in filteredStudents" :key="student.nisn" class="hover:bg-slate-50">
+                                            <td class="px-4 py-3">
+                                                <div class="font-bold text-slate-800 text-sm leading-snug">{{ student.nama }}</div>
+                                                <div class="text-xs text-slate-400 font-mono tracking-wider mt-0.5">
+                                                    NISN: {{ student.nisn }} 
+                                                    <span v-if="student.nipd" class="ml-1 text-slate-400">| NIPD: {{ student.nipd }}</span>
+                                                    <span class="ml-1 text-slate-400/80 font-sans">| SKL: {{ getStudentSklNumber(student) }}</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-xs font-semibold">
+                                                <span 
+                                                    :class="student.paket === 'Paket A' ? 'bg-sky-50 text-sky-800 border-sky-100' : 'bg-purple-50 text-purple-800 border-purple-100'"
+                                                    class="px-2 py-0.5 rounded border text-[11px]">
+                                                    {{ student.paket }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 text-xs">
+                                                <span 
+                                                    :class="student.status === 'LULUS' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-rose-50 text-rose-800 border-rose-100'"
+                                                    class="px-2 py-0.5 rounded border font-bold text-[11px] tracking-wide">
+                                                    {{ student.status }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 text-xs font-mono font-bold text-slate-700">
+                                                {{ getAverage(student.nilai) }}
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                                <div class="flex items-center justify-center gap-1.5">
+                                                    <button 
+                                                        @click="openEditStudentModal(student)"
+                                                        class="p-1.5 bg-slate-50 border border-slate-200 text-brand-700 hover:bg-brand-50 hover:text-brand-800 rounded-lg transition"
+                                                        title="Edit">
+                                                        <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                                    </button>
+                                                    <button 
+                                                        @click="confirmDeleteStudent(student)"
+                                                        class="p-1.5 bg-slate-50 border border-slate-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition"
+                                                        title="Hapus">
+                                                        <i class="fa-solid fa-trash-can text-xs"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </main>
+
+        <!-- STUDENT DETAIL & EDIT MODAL -->
+        <div v-if="showModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
+            <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden border border-slate-200 animate-scale-up">
+                
+                <!-- Modal Title Header -->
+                <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                    <h5 class="font-bold text-lg flex items-center gap-2">
+                        <i :class="modalMode === 'add' ? 'fa-solid fa-user-plus' : 'fa-solid fa-user-pen'"></i>
+                        {{ modalMode === 'add' ? 'Tambah Siswa Baru' : 'Perbarui Data Siswa' }}
+                    </h5>
+                    <button @click="closeStudentModal" class="text-slate-400 hover:text-white transition">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Form Body -->
+                <form @submit.prevent="saveStudentSubmit" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Siswa Lengkap</label>
+                            <input type="text" v-model="formStudent.nama" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NIPD</label>
+                            <input type="text" v-model="formStudent.nipd" placeholder="Contoh: A.111" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NISN (10 Digit)</label>
+                            <input 
+                                type="text" 
+                                v-model="formStudent.nisn" 
+                                required 
+                                :disabled="modalMode === 'edit'"
+                                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-600 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                            />
+                        </div>
+                        
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nomor SK / SKL Khusus (Opsional)</label>
+                            <input type="text" v-model="formStudent.noPeserta" placeholder="Biarkan kosong untuk menggunakan template nomor otomatis PKBM" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Program Paket</label>
+                            <select v-model="formStudent.paket" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none bg-white">
+                                <option value="Paket A">Paket A (Setara SD)</option>
+                                <option value="Paket B">Paket B (Setara SMP)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Status Kelulusan</label>
+                            <select v-model="formStudent.status" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none bg-white font-bold">
+                                <option value="LULUS" class="text-emerald-600 font-bold">LULUS</option>
+                                <option value="BELUM LULUS" class="text-rose-600 font-bold">BELUM LULUS</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tempat Lahir</label>
+                            <input type="text" v-model="formStudent.tempatLahir" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tanggal Lahir</label>
+                            <input type="date" v-model="formStudent.tglLahir" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                        </div>
+
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Orang Tua / Wali (Opsional)</label>
+                            <input type="text" v-model="formStudent.namaOrtu" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-600 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Grades Input Table Breakdown (12 subjects) -->
+                    <div class="border-t border-slate-100 pt-3">
+                        <span class="block text-xs font-bold text-slate-500 uppercase mb-3"><i class="fa-solid fa-list-numeric"></i> Rincian Nilai Mata Pelajaran</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">Pend. Agama</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.agama" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">Pend. Pancasila</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.ppkn" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">B. Indonesia</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.b_indo" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">Matematik</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.mtk" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">B Inggris</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.b_ing" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">IPA</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.ipa" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono font-bold text-brand-900">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">IPS</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.ips" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">PJOK</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.pjok" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">Seni Budaya</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.seni" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">B jawa</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.b_jawa" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">Pemberdayaan</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.pemberdayaan" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 capitalize mb-1">Keterampilan</label>
+                                <input type="number" step="0.01" v-model.number="formStudent.nilai.keterampilan" required class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-600 focus:outline-none font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 border-t border-slate-100 pt-4 mt-4">
+                        <button type="button" @click="closeStudentModal" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-55 transition">
+                            Batal
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition shadow-sm">
+                            Simpan Data
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+        <!-- CUSTOM DIALOG MODAL FOR CONFIRM DELETE -->
+        <div v-if="deleteConfirmTarget" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
+            <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 border border-slate-200 animate-scale-up text-center">
+                <div class="text-center mb-5">
+                    <div class="bg-rose-50 text-rose-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i class="fa-solid fa-trash-can text-xl"></i>
+                    </div>
+                    <h4 class="text-lg font-bold text-slate-900">Konfirmasi Hapus</h4>
+                    <p class="text-sm text-slate-500 mt-1">Apakah Anda yakin ingin menghapus data siswa <strong>{{ deleteConfirmTarget.nama }}</strong>? Tindakan ini tidak dapat dibatalkan.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button @click="deleteConfirmTarget = null" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition">
+                        Batal
+                    </button>
+                    <button @click="executeDeleteStudent" class="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-sm transition shadow-md">
+                        Hapus Permanen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CLOUD SYNC SIMULATION PROGRESS MODAL -->
+        <div v-if="syncProgressModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
+            <div class="bg-white rounded-2xl w-full max-w-xs shadow-2xl p-6 border border-slate-200 animate-scale-up text-center">
+                <div class="relative w-16 h-16 mx-auto mb-4">
+                    <div class="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+                    <div class="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+                    <div class="absolute inset-0 flex items-center justify-center text-indigo-600">
+                        <i class="fa-solid fa-cloud text-lg"></i>
+                    </div>
+                </div>
+                <h4 class="text-base font-bold text-slate-900 mb-1">Menyinkronkan Database</h4>
+                <p class="text-xs text-slate-400 mb-4">Harap tunggu, mengirim data aman ke cloud...</p>
+                
+                <div class="w-full bg-slate-100 rounded-full h-2 mb-2 overflow-hidden">
+                    <div class="bg-indigo-600 h-2 transition-all duration-300" :style="{ width: syncProgress + '%' }"></div>
+                </div>
+                <span class="text-xs font-mono font-bold text-indigo-600">{{ syncProgress }}%</span>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Custom robust Storage helper to bypass third-party localStorage blocks in iframe
+        const SafeStorage = {
+            memoryStore: {},
+            getItem(key) {
+                try {
+                    return window.localStorage.getItem(key);
+                } catch (e) {
+                    console.warn('LocalStorage is blocked. Falling back to in-memory state.', e);
+                    return this.memoryStore[key] || null;
+                }
+            },
+            setItem(key, value) {
+                try {
+                    window.localStorage.setItem(key, value);
+                } catch (e) {
+                    console.warn('LocalStorage is blocked. Saving to in-memory state.', e);
+                    this.memoryStore[key] = value;
+                }
+            }
+        };
+
+        // Seeded Mock Data from the user's spreadsheet image
+        const DEFAULT_STUDENTS = [
+            {
+                nisn: "0117364330",
+                nipd: "",
+                nama: "Citra Anjani",
+                noPeserta: "",
+                paket: "Paket A",
+                status: "LULUS",
+                tempatLahir: "Jakarta",
+                tglLahir: "2011-07-07",
+                namaOrtu: "Agus Santoso",
+                nilai: {
+                    agama: 80.40,
+                    ppkn: 80.70,
+                    b_indo: 79.20,
+                    mtk: 79.50,
+                    b_ing: 78.60,
+                    ipa: 80.50,
+                    ips: 80.40,
+                    pjok: 80.50,
+                    seni: 80.50,
+                    b_jawa: 80.30,
+                    pemberdayaan: 81.40,
+                    keterampilan: 80.80
+                }
+            },
+            {
+                nisn: "3148310148",
+                nipd: "A.111",
+                nama: "Daniel Lei",
+                noPeserta: "",
+                paket: "Paket A",
+                status: "LULUS",
+                tempatLahir: "Jakarta",
+                tglLahir: "2014-04-28",
+                namaOrtu: "H. Rahmat",
+                nilai: {
+                    agama: 83.50,
+                    ppkn: 83.50,
+                    b_indo: 82.70,
+                    mtk: 81.90,
+                    b_ing: 81.90,
+                    ipa: 82.60,
+                    ips: 81.60,
+                    pjok: 82.70,
+                    seni: 82.70,
+                    b_jawa: 82.40,
+                    pemberdayaan: 83.10,
+                    keterampilan: 83.10
+                }
+            },
+            {
+                nisn: "3132885639",
+                nipd: "",
+                nama: "Faatih 'Abbasy",
+                noPeserta: "",
+                paket: "Paket A",
+                status: "LULUS",
+                tempatLahir: "Surakarta",
+                tglLahir: "2013-03-29",
+                namaOrtu: "Joko Widodo",
+                nilai: {
+                    agama: 82.80,
+                    ppkn: 82.40,
+                    b_indo: 82.80,
+                    mtk: 81.60,
+                    b_ing: 81.80,
+                    ipa: 81.60,
+                    ips: 81.20,
+                    pjok: 82.00,
+                    seni: 82.80,
+                    b_jawa: 82.00,
+                    pemberdayaan: 81.98,
+                    keterampilan: 81.98
+                }
+            },
+            {
+                nisn: "9998350751",
+                nipd: "",
+                nama: "ADNAN HARY SAPUTRO",
+                noPeserta: "",
+                paket: "Paket B",
+                status: "LULUS",
+                tempatLahir: "Surakarta",
+                tglLahir: "1999-11-27",
+                namaOrtu: "Subandi",
+                nilai: {
+                    agama: 73.90,
+                    ppkn: 74.30,
+                    b_indo: 74.70,
+                    mtk: 74.30,
+                    b_ing: 74.30,
+                    ipa: 74.20,
+                    ips: 75.80,
+                    pjok: 74.50,
+                    seni: 74.50,
+                    b_jawa: 74.20,
+                    pemberdayaan: 74.30,
+                    keterampilan: 73.90
+                }
+            },
+            {
+                nisn: "0105377399",
+                nipd: "B.460",
+                nama: "ALEXANDER MOSES",
+                noPeserta: "",
+                paket: "Paket B",
+                status: "LULUS",
+                tempatLahir: "SURAKARTA",
+                tglLahir: "2010-06-29",
+                namaOrtu: "Slamet",
+                nilai: {
+                    agama: 83.50,
+                    ppkn: 83.50,
+                    b_indo: 82.70,
+                    mtk: 81.90,
+                    b_ing: 82.60,
+                    ipa: 81.60,
+                    ips: 82.70,
+                    pjok: 82.40,
+                    seni: 83.10,
+                    b_jawa: 83.10,
+                    pemberdayaan: 82.64,
+                    keterampilan: 82.64
+                }
+            }
+        ];
+
+        const DEFAULT_SETTINGS = {
+            pkbmName: "PKBM SINAR MENTARI",
+            tahunAjaran: "2025/2026",
+            headmasterName: "Drs. H. Mulyono, M.Pd.",
+            headmasterNip: "197205151998031002",
+            nomorSklFormat: "011/[PAKET]/[NISN]/PKBM-SM/VI/2026",
+            announcementDate: "2026-06-15",
+            announcementTime: "10:00",
+            tempatTerbit: "Surakarta"
+        };
+
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    // Views & Auth State
+                    currentView: 'search',
+                    isAdminAuthenticated: false,
+                    adminPassword: '',
+
+                    // Connection / Portal Active States (Online / Offline)
+                    isOnlineMode: true,
+                    isSyncing: false,
+                    syncProgress: 0,
+                    syncProgressModal: false,
+
+                    // Real-Time Clock state for auto-publish countdown
+                    now: new Date(),
+
+                    // Search States
+                    searchNISN: '',
+                    searchExecuted: false,
+                    searchResult: null,
+
+                    // Database Storage
+                    students: [],
+                    
+                    // Explicitly define all settings properties to guarantee Reactivity bindings in Vue
+                    schoolSettings: {
+                        pkbmName: '',
+                        tahunAjaran: '',
+                        headmasterName: '',
+                        headmasterNip: '',
+                        nomorSklFormat: '',
+                        announcementDate: '',
+                        announcementTime: '',
+                        tempatTerbit: ''
+                    },
+
+                    // Admin Datatable States & Filters
+                    dbSearchQuery: '',
+                    dbFilterPaket: 'ALL',
+                    dbFilterStatus: 'ALL',
+
+                    // Modal Management for Add / Edit
+                    showModal: false,
+                    modalMode: 'add', // 'add' or 'edit'
+                    formStudent: {
+                        nama: '',
+                        nipd: '',
+                        nisn: '',
+                        noPeserta: '',
+                        paket: 'Paket A',
+                        status: 'LULUS',
+                        tempatLahir: '',
+                        tglLahir: '',
+                        namaOrtu: '',
+                        nilai: {
+                            agama: 80,
+                            ppkn: 80,
+                            b_indo: 80,
+                            mtk: 80,
+                            b_ing: 80,
+                            ipa: 80,
+                            ips: 80,
+                            pjok: 80,
+                            seni: 80,
+                            b_jawa: 80,
+                            pemberdayaan: 80,
+                            keterampilan: 80
+                        }
+                    },
+
+                    // Custom Confirm delete state to avoid alerts/confirm
+                    deleteConfirmTarget: null,
+
+                    // System Notifications State
+                    sysMessage: null
+                };
+            },
+            computed: {
+                totalStudentsCount() {
+                    return this.students.length;
+                },
+                totalPassedPercentage() {
+                    if (this.students.length === 0) return 0;
+                    const passed = this.students.filter(s => s.status === 'LULUS').length;
+                    return Math.round((passed / this.students.length) * 100);
+                },
+                filteredStudents() {
+                    return this.students.filter(student => {
+                        // Search matches
+                        const matchesSearch = student.nama.toLowerCase().includes(this.dbSearchQuery.toLowerCase()) ||
+                                              student.nisn.includes(this.dbSearchQuery);
+                        // Program matches
+                        const matchesPaket = this.dbFilterPaket === 'ALL' || student.paket === this.dbFilterPaket;
+                        // Status matches
+                        const matchesStatus = this.dbFilterStatus === 'ALL' || student.status === this.dbFilterStatus;
+
+                        return matchesSearch && matchesPaket && matchesStatus;
+                    });
+                },
+                
+                // Check if current date and time is past the scheduled release
+                isPublished() {
+                    if (!this.schoolSettings.announcementDate || !this.schoolSettings.announcementTime) return true;
+                    // Combine date and time string to date object
+                    const targetStr = `${this.schoolSettings.announcementDate}T${this.schoolSettings.announcementTime}`;
+                    const targetDate = new Date(targetStr);
+                    return this.now >= targetDate;
+                },
+
+                // Calculated Countdown properties
+                countdown() {
+                    if (!this.schoolSettings.announcementDate || !this.schoolSettings.announcementTime) {
+                        return { days: 0, hours: 0, minutes: 0, seconds: 0, active: false };
+                    }
+                    const targetStr = `${this.schoolSettings.announcementDate}T${this.schoolSettings.announcementTime}`;
+                    const targetDate = new Date(targetStr);
+                    const diff = targetDate - this.now;
+
+                    if (diff <= 0) {
+                        return { days: 0, hours: 0, minutes: 0, seconds: 0, active: false };
+                    }
+
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                    return { days, hours, minutes, seconds, active: true };
+                }
+            },
+            methods: {
+                // Initialize Application Storage using robust SafeStorage helper
+                initStorage() {
+                    const localStudents = SafeStorage.getItem('p_kelulusan_students');
+                    const localSettings = SafeStorage.getItem('p_kelulusan_settings');
+                    const portalStatus = SafeStorage.getItem('p_portal_status');
+
+                    if (localStudents) {
+                        this.students = JSON.parse(localStudents);
+                    } else {
+                        this.students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
+                        SafeStorage.setItem('p_kelulusan_students', JSON.stringify(this.students));
+                    }
+
+                    if (localSettings) {
+                        const parsedSettings = JSON.parse(localSettings);
+                        // Combine settings with default to ensure no property is missing or non-reactive
+                        this.schoolSettings = { ...DEFAULT_SETTINGS, ...parsedSettings };
+                        
+                        // Auto migration if user is still using old Bhakti Nusantara brand
+                        if (this.schoolSettings.pkbmName === "PKBM Bhakti Nusantara") {
+                            this.schoolSettings.pkbmName = "PKBM SINAR MENTARI";
+                            this.schoolSettings.nomorSklFormat = "011/[PAKET]/[NISN]/PKBM-SM/VI/2026";
+                        }
+                        SafeStorage.setItem('p_kelulusan_settings', JSON.stringify(this.schoolSettings));
+                    } else {
+                        this.schoolSettings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+                        SafeStorage.setItem('p_kelulusan_settings', JSON.stringify(this.schoolSettings));
+                    }
+
+                    if (portalStatus !== null) {
+                        this.isOnlineMode = portalStatus === 'true';
+                    } else {
+                        this.isOnlineMode = true;
+                    }
+
+                    // Start continuous clock updates (every 1 second)
+                    setInterval(() => {
+                        this.now = new Date();
+                    }, 1000);
+                },
+                saveToLocalStorage() {
+                    SafeStorage.setItem('p_kelulusan_students', JSON.stringify(this.students));
+                    SafeStorage.setItem('p_kelulusan_settings', JSON.stringify(this.schoolSettings));
+                    SafeStorage.setItem('p_portal_status', this.isOnlineMode);
+                },
+
+                // Manual Switch Connection Mode (Online / Offline Button)
+                toggleConnectionMode() {
+                    this.isOnlineMode = !this.isOnlineMode;
+                    this.saveToLocalStorage();
+                    if (this.isOnlineMode) {
+                        this.showSystemMessage('Akses Cek Kelulusan Siswa berhasil diaktifkan kembali.', 'success');
+                    } else {
+                        this.showSystemMessage('Akses Cek Kelulusan Siswa ditutup sementara.', 'success');
+                    }
+                },
+
+                // Simulated Cloud Synchronization for Online Mode
+                simulateCloudSync() {
+                    if (this.isSyncing) return;
+                    this.isSyncing = true;
+                    this.syncProgress = 0;
+                    this.syncProgressModal = true;
+
+                    const interval = setInterval(() => {
+                        this.syncProgress += 10;
+                        if (this.syncProgress >= 100) {
+                            clearInterval(interval);
+                            setTimeout(() => {
+                                this.isSyncing = false;
+                                this.syncProgressModal = false;
+                                this.showSystemMessage('Sinkronisasi Berhasil! Seluruh data lokal telah diunggah ke cloud.', 'success');
+                            }, 500);
+                        }
+                    }, 250);
+                },
+
+                // Navigation Controller
+                switchView(view) {
+                    this.currentView = view;
+                    this.searchExecuted = false;
+                    this.searchResult = null;
+                },
+
+                // Student Search Engine Handler
+                handleSearch() {
+                    if (!this.searchNISN) return;
+                    
+                    const result = this.students.find(student => student.nisn === this.searchNISN);
+                    this.searchResult = result || null;
+                    this.searchExecuted = true;
+
+                    // Trigger confetti celebrate effect for success
+                    if (result && result.status === 'LULUS') {
+                        this.triggerConfetti();
+                    }
+
+                    // Smooth scroll to result
+                    this.$nextTick(() => {
+                        const elem = document.getElementById('search-result');
+                        if (elem) {
+                            elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    });
+                },
+
+                // Confetti fireworks animation
+                triggerConfetti() {
+                    const duration = 3 * 1000;
+                    const end = Date.now() + duration;
+
+                    (function frame() {
+                        confetti({
+                            particleCount: 3,
+                            angle: 60,
+                            spread: 55,
+                            origin: { x: 0 },
+                            colors: ['#0ea5e9', '#f59e0b', '#10b981']
+                        });
+                        confetti({
+                            particleCount: 3,
+                            angle: 120,
+                            spread: 55,
+                            origin: { x: 1 },
+                            colors: ['#0ea5e9', '#f59e0b', '#10b981']
+                        });
+
+                        if (Date.now() < end) {
+                            requestAnimationFrame(frame);
+                        }
+                    }());
+                },
+
+                // Helpers for UI representation
+                formatDate(dateStr) {
+                    if (!dateStr) return '';
+                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    return new Date(dateStr).toLocaleDateString('id-ID', options);
+                },
+                getAverage(nilaiObj) {
+                    if (!nilaiObj) return '0.00';
+                    const keys = Object.keys(nilaiObj);
+                    const sum = keys.reduce((acc, key) => acc + Number(nilaiObj[key]), 0);
+                    return (sum / keys.length).toFixed(2);
+                },
+                cleanSubjectName(subCode) {
+                    const names = {
+                        agama: 'Pend. Agama',
+                        ppkn: 'Pend. Pancasila',
+                        b_indo: 'B. Indonesia',
+                        mtk: 'Matematik',
+                        b_ing: 'B Inggris',
+                        ipa: 'IPA',
+                        ips: 'IPS',
+                        pjok: 'PJOK',
+                        seni: 'Seni Budaya',
+                        b_jawa: 'B jawa',
+                        pemberdayaan: 'Pemberdayaan',
+                        keterampilan: 'Keterampilan'
+                    };
+                    return names[subCode] || subCode;
+                },
+
+                // Dynamic real-time SKL Number generator based on config template
+                getStudentSklNumber(student) {
+                    if (!student) return '';
+                    // If the student has a hardcoded custom number that is not blank, use it.
+                    if (student.noPeserta && student.noPeserta.trim() !== '') {
+                        return student.noPeserta;
+                    }
+                    // Otherwise, generate dynamically using the school format config
+                    if (this.schoolSettings.nomorSklFormat) {
+                        let format = this.schoolSettings.nomorSklFormat;
+                        format = format.replace('[NISN]', student.nisn || '');
+                        format = format.replace('[NIPD]', student.nipd || '-');
+                        format = format.replace('[PAKET]', student.paket === 'Paket A' ? 'PKT-A' : 'PKT-B');
+                        return format;
+                    }
+                    return `011/${student.nisn}/PKBM/2026`;
+                },
+
+                // Authentication Actions
+                authenticateAdmin() {
+                    if (this.adminPassword === 'sugimin') {
+                        this.isAdminAuthenticated = true;
+                        this.adminPassword = '';
+                        this.showSystemMessage('Akses Administrator berhasil dibuka!', 'success');
+                    } else {
+                        this.showSystemMessage('Password salah! Silakan coba lagi.', 'error');
+                    }
+                },
+                logoutAdmin() {
+                    this.isAdminAuthenticated = false;
+                    this.showSystemMessage('Anda telah keluar dari panel admin.', 'success');
+                },
+
+                // System notifications handler
+                showSystemMessage(text, type = 'success') {
+                    this.sysMessage = { text, type };
+                    setTimeout(() => {
+                        if (this.sysMessage && this.sysMessage.text === text) {
+                            this.sysMessage = null;
+                        }
+                    }, 4500);
+                },
+
+                // Settings Operations
+                saveSchoolSettings() {
+                    this.saveToLocalStorage();
+                    this.showSystemMessage('Sistem pengaturan PKBM berhasil diperbarui!', 'success');
+                },
+                resetToDefaultData() {
+                    this.students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
+                    this.schoolSettings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+                    this.isOnlineMode = true;
+                    this.saveToLocalStorage();
+                    this.showSystemMessage('Database disetel kembali ke pangkalan simulasi awal.', 'success');
+                },
+
+                // Modal Operations
+                openAddStudentModal() {
+                    this.modalMode = 'add';
+                    this.formStudent = {
+                        nama: '',
+                        nipd: '',
+                        nisn: '',
+                        noPeserta: '',
+                        paket: 'Paket A',
+                        status: 'LULUS',
+                        tempatLahir: '',
+                        tglLahir: '',
+                        namaOrtu: '-',
+                        nilai: {
+                            agama: 80,
+                            ppkn: 80,
+                            b_indo: 80,
+                            mtk: 80,
+                            b_ing: 80,
+                            ipa: 80,
+                            ips: 80,
+                            pjok: 80,
+                            seni: 80,
+                            b_jawa: 80,
+                            pemberdayaan: 80,
+                            keterampilan: 80
+                        }
+                    };
+                    this.showModal = true;
+                },
+                openEditStudentModal(student) {
+                    this.modalMode = 'edit';
+                    this.formStudent = JSON.parse(JSON.stringify(student));
+                    this.showModal = true;
+                },
+                closeStudentModal() {
+                    this.showModal = false;
+                },
+
+                // Student Operations with Reactive Array Splices
+                saveStudentSubmit() {
+                    const clonedStudent = JSON.parse(JSON.stringify(this.formStudent));
+
+                    if (this.modalMode === 'add') {
+                        const exists = this.students.some(s => s.nisn === clonedStudent.nisn);
+                        if (exists) {
+                            this.showSystemMessage(`NISN "${clonedStudent.nisn}" sudah terdaftar sebelumnya!`, 'error');
+                            return;
+                        }
+                        this.students.push(clonedStudent);
+                        this.showSystemMessage('Siswa baru berhasil ditambahkan.', 'success');
+                    } else {
+                        // Update existing matching the NISN key using reactive splice
+                        const idx = this.students.findIndex(s => s.nisn === clonedStudent.nisn);
+                        if (idx !== -1) {
+                            this.students.splice(idx, 1, clonedStudent);
+                            
+                            // Synchronize viewing profile if currently examined by user
+                            if (this.searchResult && this.searchResult.nisn === clonedStudent.nisn) {
+                                this.searchResult = clonedStudent;
+                            }
+                            this.showSystemMessage('Informasi siswa berhasil diperbarui.', 'success');
+                        }
+                    }
+                    this.saveToLocalStorage();
+                    this.closeStudentModal();
+                },
+                
+                // Replaced standard browser confirm with custom state modal
+                confirmDeleteStudent(student) {
+                    this.deleteConfirmTarget = student;
+                },
+                executeDeleteStudent() {
+                    if (this.deleteConfirmTarget) {
+                        const targetNisn = this.deleteConfirmTarget.nisn;
+                        this.students = this.students.filter(s => s.nisn !== targetNisn);
+                        this.saveToLocalStorage();
+                        
+                        // Clear active search if student was deleted
+                        if (this.searchResult && this.searchResult.nisn === targetNisn) {
+                            this.searchResult = null;
+                            this.searchExecuted = false;
+                        }
+                        
+                        this.showSystemMessage('Data siswa berhasil dihapus dari sistem.', 'success');
+                        this.deleteConfirmTarget = null;
+                    }
+                },
+
+                // Excel Upload & Import Operations
+                triggerExcelUpload() {
+                    this.$refs.excelFileInput.click();
+                },
+                handleExcelUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const firstSheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[firstSheetName];
+                            
+                            // Convert spreadsheet table directly to nested arrays
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                            if (jsonData.length < 2) {
+                                this.showSystemMessage('File Excel kosong atau format kolom tidak sesuai.', 'error');
+                                return;
+                            }
+
+                            // Normalize headers to identify index
+                            const headers = jsonData[0].map(h => String(h || '').trim().toLowerCase());
+                            
+                            // Col indices mapper matching your Excel screenshot
+                            const cols = {
+                                nama: headers.indexOf('nama'),
+                                nipd: headers.indexOf('nipd'),
+                                tempat: headers.indexOf('tempat'),
+                                tglLahir: headers.indexOf('tanggal lahir'),
+                                nisn: headers.indexOf('nisn'),
+                                paket: headers.indexOf('paket'),
+                                sk: headers.indexOf('sk'),
+                                agama: headers.indexOf('pend. agama'),
+                                ppkn: headers.indexOf('pend. pancasila'),
+                                b_indo: headers.indexOf('b. indonesia'),
+                                mtk: headers.indexOf('matematik'),
+                                b_ing: headers.indexOf('b inggris'),
+                                ipa: headers.indexOf('ipa'),
+                                ips: headers.indexOf('ips'),
+                                pjok: headers.indexOf('pjok'),
+                                seni: headers.indexOf('seni budaya'),
+                                b_jawa: headers.indexOf('b jawa'),
+                                pemberdayaan: headers.indexOf('pemberdayaan'),
+                                keterampilan: headers.indexOf('keterampilan'),
+                                keterangan: headers.indexOf('keterangan')
+                            };
+
+                            // Strict check on essential identification columns
+                            if (cols.nama === -1 || cols.nisn === -1 || cols.paket === -1) {
+                                this.showSystemMessage('Impor Gagal! Pastikan header "Nama", "NISN", dan "Paket" tersedia.', 'error');
+                                return;
+                            }
+
+                            let insertCount = 0;
+                            let updateCount = 0;
+
+                            for (let i = 1; i < jsonData.length; i++) {
+                                const row = jsonData[i];
+                                if (!row || row.length === 0) continue;
+
+                                const rawNisn = String(row[cols.nisn] || '').trim();
+                                if (!rawNisn) continue;
+
+                                const rawNama = String(row[cols.nama] || '').trim();
+                                const rawPaket = String(row[cols.paket] || '').trim().toUpperCase();
+                                
+                                // Determine program paket kesetaraan
+                                let finalPaket = 'Paket A';
+                                if (rawPaket.includes('B') || rawPaket.includes('SMP')) {
+                                    finalPaket = 'Paket B';
+                                }
+
+                                // Determine graduation status
+                                const rawKeterangan = String(row[cols.keterangan] || '').trim().toUpperCase();
+                                let finalStatus = 'BELUM LULUS';
+                                if (rawKeterangan.includes('LULUS') || rawKeterangan === 'L' || rawKeterangan === 'PASSED') {
+                                    finalStatus = 'LULUS';
+                                }
+
+                                // Parse date properly
+                                const parsedTglLahir = row[cols.tglLahir] ? this.parseExcelDate(row[cols.tglLahir]) : '2010-01-01';
+
+                                // Map student row structure
+                                const studentObj = {
+                                    nama: rawNama,
+                                    nipd: cols.nipd !== -1 ? String(row[cols.nipd] || '').trim() : '',
+                                    nisn: rawNisn,
+                                    noPeserta: cols.sk !== -1 && row[cols.sk] ? String(row[cols.sk]).trim() : '', // blank for automatic configuration
+                                    paket: finalPaket,
+                                    status: finalStatus,
+                                    tempatLahir: cols.tempat !== -1 ? String(row[cols.tempat] || 'Surakarta').trim() : 'Surakarta',
+                                    tglLahir: parsedTglLahir,
+                                    namaOrtu: '-',
+                                    nilai: {
+                                        agama: cols.agama !== -1 ? Number(row[cols.agama] || 0) : 80,
+                                        ppkn: cols.ppkn !== -1 ? Number(row[cols.ppkn] || 0) : 80,
+                                        b_indo: cols.b_indo !== -1 ? Number(row[cols.b_indo] || 0) : 80,
+                                        mtk: cols.mtk !== -1 ? Number(row[cols.mtk] || 0) : 80,
+                                        b_ing: cols.b_ing !== -1 ? Number(row[cols.b_ing] || 0) : 80,
+                                        ipa: cols.ipa !== -1 ? Number(row[cols.ipa] || 0) : 80,
+                                        ips: cols.ips !== -1 ? Number(row[cols.ips] || 0) : 80,
+                                        pjok: cols.pjok !== -1 ? Number(row[cols.pjok] || 0) : 80,
+                                        seni: cols.seni !== -1 ? Number(row[cols.seni] || 0) : 80,
+                                        b_jawa: cols.b_jawa !== -1 ? Number(row[cols.b_jawa] || 0) : 80,
+                                        pemberdayaan: cols.pemberdayaan !== -1 ? Number(row[cols.pemberdayaan] || 0) : 80,
+                                        keterampilan: cols.keterampilan !== -1 ? Number(row[cols.keterampilan] || 0) : 80
+                                    }
+                                };
+
+                                // Write to DB (replace on duplication)
+                                const existingIdx = this.students.findIndex(s => s.nisn === studentObj.nisn);
+                                if (existingIdx !== -1) {
+                                    this.students.splice(existingIdx, 1, studentObj);
+                                    updateCount++;
+                                } else {
+                                    this.students.push(studentObj);
+                                    insertCount++;
+                                }
+                            }
+
+                            this.saveToLocalStorage();
+                            this.showSystemMessage(`Berhasil mengimpor! ${insertCount} data ditambahkan, ${updateCount} data diperbarui.`, 'success');
+                            event.target.value = ''; // Reset input target file
+                        } catch (err) {
+                            console.error(err);
+                            this.showSystemMessage('Gagal parsing file Excel. Cek kembali integritas file.', 'error');
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                },
+                parseExcelDate(val) {
+                    if (!val) return '2010-01-01';
+                    
+                    // Handle numeric representation of dates (Excel Serial Date)
+                    if (typeof val === 'number') {
+                        const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+                        return date.toISOString().split('T')[0];
+                    }
+                    
+                    const cleanStr = String(val).trim().toLowerCase();
+                    
+                    // Matches standard ISO date formatting
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanStr)) {
+                        return cleanStr;
+                    }
+
+                    // Handles text Indonesian dates (e.g. 07 Juli 2011)
+                    const months = {
+                        januari: '01', maret: '03', mei: '05', juli: '07', september: '09', november: '11',
+                        februari: '02', april: '04', juni: '06', agustus: '08', oktober: '10', desember: '12',
+                        jan: '01', feb: '02', mar: '03', apr: '04', mei: '05', jun: '06', jul: '07', ags: '08', sep: '09', okt: '10', nov: '11', des: '12'
+                    };
+
+                    const parts = cleanStr.split(/[\s,./-]+/);
+                    if (parts.length === 3) {
+                        let day = parts[0].padStart(2, '0');
+                        let month = months[parts[1]] || '01';
+                        let year = parts[2];
+                        if (year.length === 2) year = '20' + year;
+                        return `${year}-${month}-${day}`;
+                    }
+
+                    return '2010-01-01';
+                },
+
+                // Downloader of Excel template
+                downloadExcelTemplate() {
+                    // Preformatted headers exactly mirroring the uploaded screenshot
+                    const headers = [
+                        "Nama", "NIPD", "Tempat", "Tanggal Lahir", "NISN", "Paket", "SK",
+                        "Pend. Agama", "Pend. Pancasila", "B. Indonesia", "Matematik", "B Inggris",
+                        "IPA", "IPS", "PJOK", "Seni Budaya", "B jawa", "Pemberdayaan", "Keterampilan", "Keterangan"
+                    ];
+                    
+                    const sampleRows = [
+                        headers,
+                        ["Citra Anjani", "", "Jakarta", "07 Juli 2011", "0117364330", "PAKET A", "", 80.40, 80.70, 79.20, 79.50, 78.60, 80.50, 80.40, 80.50, 80.50, 80.30, 81.40, 80.80, "Lulus"],
+                        ["Daniel Lei", "A.111", "Jakarta", "28 April 2014", "3148310148", "PAKET A", "", 83.50, 83.50, 82.70, 81.90, 81.90, 82.60, 81.60, 82.70, 82.70, 82.40, 83.10, 83.10, "Lulus"],
+                        ["ADNAN HARY SAPUTRO", "", "Surakarta", "27 November 1999", "9998350751", "PAKET B", "", 73.90, 74.30, 74.70, 74.30, 74.30, 74.20, 75.80, 74.50, 74.50, 74.20, 74.30, 73.90, "Lulus"]
+                    ];
+
+                    const ws = XLSX.utils.aoa_to_sheet(sampleRows);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Daftar Kelulusan");
+                    
+                    XLSX.writeFile(wb, "Template_Data_Kelulusan_PKBM.xlsx");
+                    this.showSystemMessage('Template Excel kelulusan berhasil diunduh!', 'success');
+                },
+
+                // Statistics Counter Helpers
+                countStudentsByPaket(paket) {
+                    return this.students.filter(s => s.paket === paket).length;
+                },
+                countStudentsByStatus(status) {
+                    return this.students.filter(s => s.status === status).length;
+                },
+                countStudentsByPaketAndStatus(paket, status) {
+                    return this.students.filter(s => s.paket === paket && s.status === status).length;
+                },
+                getPercentage(paket) {
+                    const total = this.countStudentsByPaket(paket);
+                    if (total === 0) return 0;
+                    const passed = this.countStudentsByPaketAndStatus(paket, 'LULUS');
+                    return Math.round((passed / total) * 100);
+                },
+
+                // Document Navigation & Actions
+                scrollToSkl() {
+                    this.$nextTick(() => {
+                        const elem = document.getElementById('skl-preview-section');
+                        if (elem) {
+                            elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    });
+                },
+                printCertificate() {
+                    window.print();
+                    setTimeout(() => {
+                        this.searchNISN = '';
+                        this.searchExecuted = false;
+                        this.searchResult = null;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }, 500);
+                }
+            },
+            created() {
+                this.initStorage();
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
